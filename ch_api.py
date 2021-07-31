@@ -1,17 +1,21 @@
-# api.py
+# ch_api.py
+""" Companies House API calls for companies_house_viewer.py
 
+
+"""
 from requests.auth import HTTPBasicAuth
 from datetime import datetime
 import json
 import requests
 
-KEY = "HCAM36mMUItP0w3Rs16EKvaiiVN1QJucgJdbeG13"
 URL_PROFILE = "https://api.companieshouse.gov.uk/company/"
 URL_OFFICERS = "/officers"
 COMPANY_NUM_LEN = 8
 
 
 def fill_company_number(num):
+    """ Add leading zeros to a company number
+    """
     return ("0" * (COMPANY_NUM_LEN - len(str(num)))) + str(num)
 
 
@@ -20,27 +24,33 @@ def get_resource(url, company_num):
 
 
 def get_resource_fullurl(url, params={}):
+    """ Get specific type of resource (query) from a specific API URL
+
+    Args:
+        url: API urls
+        params: paraneters to use in HTTP request
+
+    Returns:
+        json response
+
+    """
     response = requests.get(url, auth=HTTPBasicAuth(KEY, ''), params=params)
     if response.status_code == 404:
         return None
     return json.loads(response.text)
 
 
-def get_next_confirmation_date(company_numbers):
-    results = {}
-    for num in company_numbers:
-        response = get_resource(URL_PROFILE, fill_company_number(num))
-        if response:
-            try:
-                results[num] = response["confirmation_statement"]["next_due"]
-            except IndexError:
-                results[num] = None
-        else:
-            results[num] = None
-    return results
-
 
 def get_profile(company_num):
+    """ Get basic information for a company
+
+    Args:
+        company_num:  company number as string
+
+    Returns:
+        dictionary with the information received, None if company number could not be found
+
+    """
     profile = {}
     response = get_resource(URL_PROFILE, fill_company_number(company_num))
     if response:
@@ -73,6 +83,16 @@ def get_profile(company_num):
 
 
 def get_officers(company_num, filter_directors=True):
+    """ Get list of current officers and directors in a company
+
+    Args:
+        company_num: number of a company
+        filter_directors: True if list should return only directors
+
+    Returns:
+        multi-line string with full names of the directors / officers, None if not found
+
+    """
     response = get_resource_fullurl(URL_PROFILE + fill_company_number(company_num) + URL_OFFICERS)
     if response:
         return '\n'.join([(' '.join([k.strip().title() for k in reversed(i['name'].split(','))]))

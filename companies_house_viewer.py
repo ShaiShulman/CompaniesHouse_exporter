@@ -1,8 +1,21 @@
-# ch_filing_explorer.py
+# companies_house_viewer.py
 
+""" UK Companies House viewer - use the UK companies house to get details on multiple companeis into an Excel file
+
+The script allows the user to provide an Excel with UK company number and add the current registration details
+of these companies into the same Excel file through the Companies House API
+
+In order to use this tool, the user must obtain an API key from https://developer-specs.company-information.service.gov.uk/guides/authorisation
+the API key should be saved in a text file named api_key.txt.
+In addition, an Excel file containing the numbers of the relevant companies in the first column must be provided.
+
+The script imports the ch_api.py module, that include calls to the Companies House API.
+
+(c) Shai Shulman, 2021, under the GNU General Public License v3
+"""
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
-from api import get_profile, get_officers
+from ch_api import get_profile, get_officers
 from datetime import datetime, timedelta
 import argparse
 
@@ -24,12 +37,30 @@ def _parse_args():
 
 
 def get_sheet(filename):
-    ''' load excel worksheet '''
+    """
+    Open workbook and return first worksheet as object
+
+    Args:
+        filename: local file name
+
+    Returns:
+        Worksheet object
+
+    """
     wb = load_workbook(filename)
     return wb.worksheets[0]
 
 
 def get_first_data_row(sheet):
+    """ Find first row in the excel with data (company numbers)
+
+    Args:
+        sheet: worksheet object
+
+    Returns:
+        first row with data
+
+    """
     for row in range(1, sheet.max_row):
         if str(sheet['A' + str(row)].value).isnumeric():
             return row
@@ -37,6 +68,16 @@ def get_first_data_row(sheet):
 
 
 def get_numbers_from_xl(sheet, data_row):
+    """Get company numbers from the first column of the excel sheet
+
+    Args:
+        sheet: worksheet object
+        data_row: first row containing data
+
+    Returns:
+        list of company numbers
+
+    """
     numbers = []
     for row in range(data_row, sheet.max_row+1):
         numbers.append(sheet['A' + str(row)].value)
@@ -45,6 +86,12 @@ def get_numbers_from_xl(sheet, data_row):
 
 
 def get_api_key_from_file():
+    """ Open the text file named API_KEY_FILE  and read the api key
+
+    Returns:
+        API key as string
+
+    """
     try:
         f = open(API_KEY_FILE, 'r')
         akey = f.readline()
@@ -56,7 +103,16 @@ def get_api_key_from_file():
         print(f'ERROR: cannot read api key from file {API_KEY_FILE}')
 
 
-def get_companies_data(numbers, include_directors=False, include_address=False):
+def get_companies_data(numbers, include_directors=False):
+    """Get data of companies from the Companies House
+
+    Args:
+        numbers: list of numbers of companies to search
+        include_directors: should the query include the names of current directors
+
+    Returns:
+
+    """
     results = []
     for num in numbers:
         print(f'Obtaining data for company number {num}...', end='')
@@ -74,6 +130,14 @@ def get_companies_data(numbers, include_directors=False, include_address=False):
 
 
 def save_xl_sheet(sheet, data, first_data_row, file_name):
+    """Save companies data into the Excel worksheet, in the same row where existing company numbers are located
+
+    Args:
+        sheet: worksheet object
+        data: list of dictionary objects that include the data to be saved, by same order of rows as included in the Excel
+        first_data_row: first row containing data
+        file_name: name of file to be saved
+    """
     data_fields = {'company_name': 2, 'address': 3, 'next_confirmation': 4, 'next_accounts': 5, 'directors': 6}
     print(f'Saving excel to {file_name}...', end='')
     for row in range(first_data_row, len(data) + first_data_row):
